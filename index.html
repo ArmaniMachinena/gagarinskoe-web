@@ -52,7 +52,7 @@ button.go:disabled{opacity:.6}
 <script>
 (() => { // own scope: the app written into this page later declares its own globals
 'use strict';
-const CFG = {"salt": "Q97vl/HKMCZ/OeuhzylAqA==", "iv": "FYReAYhOs3T4A2b/", "iter": 600000, "size": 10126670}, KEY = 'gagarinskoye-pw';
+const CFG = {"salt": "FrmbOEd2HAOeT1VyVzGZEg==", "iv": "TCvn8VquiFv189X4", "iter": 600000, "size": 10115410}, KEY = 'gagarinskoye-pw';
 const $ = s => document.querySelector(s), b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const msg = (t, bad) => { $('#msg').textContent = t; $('#msg').className = bad ? 'bad' : ''; };
 // start downloading the encrypted app right away, while the password is typed
