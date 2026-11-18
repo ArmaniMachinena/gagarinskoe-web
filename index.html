@@ -52,16 +52,16 @@ button.go:disabled{opacity:.6}
 <script>
 (() => { // own scope: the app written into this page later declares its own globals
 'use strict';
-const CFG = {"salt": "MwIDphVBdJPipCy9g5ALNw==", "iv": "F6Gb1PSDhRniQus0", "iter": 600000, "size": 10136421}, KEY = 'gagarinskoye-pw';
+const CFG = {iter: 600000}, KEY = 'gagarinskoye-pw';
 const $ = s => document.querySelector(s), b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const msg = (t, bad) => { $('#msg').textContent = t; $('#msg').className = bad ? 'bad' : ''; };
 // start downloading the encrypted app right away, while the password is typed
 let got = 0;
 const data = (async () => {
-  const r = await fetch('app.bin', {cache: 'no-cache'}); if (!r.ok) throw new Error('net');
+  const r = await fetch('app.bin', {cache: 'no-cache'}); if (!r.ok) throw new Error('net'); const total = +r.headers.get('content-length') || 10.5e6; // salt and iv travel inside app.bin, so a stale cached page can never disagree with it
   if (!r.body || !r.body.getReader) return new Uint8Array(await r.arrayBuffer());
   const rd = r.body.getReader(), parts = [];
-  for (;;) { const {done, value} = await rd.read(); if (done) break; parts.push(value); got += value.length; $('#bar').style.width = Math.min(100, got / CFG.size * 100) + '%'; }
+  for (;;) { const {done, value} = await rd.read(); if (done) break; parts.push(value); got += value.length; $('#bar').style.width = Math.min(100, got / total * 100) + '%'; }
   const out = new Uint8Array(got); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; } return out;
 })();
 data.catch(() => {});
@@ -70,11 +70,12 @@ async function unlock(pw, remember) {
   $('#go').disabled = true; msg('Проверяю пароль…');
   try {
     const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
-    const key = await crypto.subtle.deriveKey({name: 'PBKDF2', salt: b64(CFG.salt), iterations: CFG.iter, hash: 'SHA-256'}, base, {name: 'AES-GCM', length: 256}, false, ['decrypt']);
-    msg(got < CFG.size ? 'Загружаю карты…' : 'Открываю…');
+    msg('Загружаю карты…');
     let bytes; try { bytes = await data; } catch (e) { msg('Нет интернета или сайт не отвечает. Проверьте связь и обновите страницу', true); $('#go').disabled = false; return false; }
+    const key = await crypto.subtle.deriveKey({name: 'PBKDF2', salt: bytes.slice(0, 16), iterations: CFG.iter, hash: 'SHA-256'}, base, {name: 'AES-GCM', length: 256}, false, ['decrypt']);
+    msg('Открываю…');
     let plain;
-    try { plain = await crypto.subtle.decrypt({name: 'AES-GCM', iv: b64(CFG.iv), additionalData: new TextEncoder().encode('gagarinskoye-v1')}, key, bytes); }
+    try { plain = await crypto.subtle.decrypt({name: 'AES-GCM', iv: bytes.slice(16, 28), additionalData: new TextEncoder().encode('gagarinskoye-v1')}, key, bytes.slice(28)); }
     catch (e) { try { localStorage.removeItem(KEY); } catch (x) {} msg('Неверный пароль', true); $('#go').disabled = false; $('#pw').select(); return false; }
     try { if (remember) localStorage.setItem(KEY, pw); else localStorage.removeItem(KEY); } catch (x) {}
     const html = await new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
